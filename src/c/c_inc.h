@@ -53,7 +53,8 @@ typedef struct m{ // this is an adjacency list edge, meaning that it is
   int   master_idx;   // indexing into the vote array (only for the 
                       // voting), it maybe possible to remove this field
 
-  int   sample;     // leaf sample at the destination
+  // int   sample;     // leaf sample at the destination
+  int * samples; // GC: leaf sample(s) at the destination
   double weight;
 } BT_edge;
 
@@ -111,6 +112,7 @@ typedef struct ml_options{
   char * init_tree_name;   // currently only accepts path 
   char * init_d_name;     // currently only accepts path
   char * guide_tree_name;   // currently only accepts path
+  char * num_leaf_samples; // GC: adding variable leaf sample parameter
 
   int num_trees;
   char ** tree_names ;

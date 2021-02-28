@@ -165,6 +165,10 @@ int parse_ml_arg(char ** argv,
   // -d: distance model               (expect "JC"/"logDet"/"K2P"/"P")
   // -s: max subset size              (expect a positive number)
   // -p: tmp folder location          (expect a string)
+
+  // -l: number of samples to keep    (expect an int)
+  //     per edge
+
   switch(flag[1]){   
     case 'p':
         ml_options->tmp_folder = argv[content_s];
@@ -184,6 +188,8 @@ int parse_ml_arg(char ** argv,
     case 'm':
         ml_options->init_d_name = argv[content_s];
       break;
+    case 'l':
+        ml_options->num_leaf_samples = argv[content_s]; // GC: adding variable leaf sample parameter
     case 'r': 
         ml_options->recompute_constraint_trees = argv[content_s][0] - '0';
       break;

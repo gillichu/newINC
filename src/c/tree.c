@@ -21,24 +21,27 @@ int attach_leaf_to_edge_impl(
     int x, 
     int addition_edge_parent,
     int additional_edge_child, 
-    int adjacent_in_mst);
+    int adjacent_in_mst,
+    int num_samples);
 
 BT * tree_constructor(
     int n, 
-    BT_edge ** adj_list, 
+    BT_edge *** adj_list, // GC: added another * 
     int * degree, 
-    int * master_idx_map);
+    int * master_idx_map, 
+    int num_samples); // GC: added num_leaves parameter
 
 BT * read_newick(
     MAP_GRP * map, 
     char * filename, 
-    int tree_idx);
+    int tree_idx,
+    int num_samples);
 
 int init();
 
 int check(int node_a, BT * tree);
 
-int swap_adajcency(int nod_a, int node_b, int node_c, BT* tree);
+int swap_adajcency(int nod_a, int node_b, int node_c, BT* tree, int num_samples);
 
 int make_adjacent(int node_a, int node_b, BT * tree);
 
@@ -126,9 +129,9 @@ int parse_tree(INC_GRP * meta, MAP_GRP * map, ml_options * options){
   // Call the newick reader
   for(i = 0; i < meta->n_ctree; i++){
     if(meta->master_ml_options->qtree_method == Q_SUBTREE)
-      meta->ctree[i]      = read_newick(map, options->tree_names[i + 1], i);
+      meta->ctree[i]      = read_newick(map, options->tree_names[i + 1], i, options->num_leaf_samples);
     else 
-      meta->ctree[i]      = read_newick(map, options->tree_names[i], i);
+      meta->ctree[i]      = read_newick(map, options->tree_names[i], i, options->num_leaf_samples);
   }                                               
   return 0;
 }
@@ -144,7 +147,7 @@ int parse_tree(INC_GRP * meta, MAP_GRP * map, ml_options * options){
  * Effect: allocate some memories, build some trees, init the growing tree and 
  *    visited array in meta
  */
-int init_growing_tree(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst){ 
+int init_growing_tree(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, int num_samples){ 
   const int N_START_TAXON = 3;
   int i;
 
@@ -164,7 +167,7 @@ int init_growing_tree(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst){
   memset(meta->visited, 0, meta->n_taxa * sizeof(int));
 
   // Growing tree initialization
-  meta->gtree = tree_constructor(4 * meta->n_taxa,  NULL, NULL, NULL); 
+  meta->gtree = tree_constructor(4 * meta->n_taxa,  NULL, NULL, NULL, num_samples); 
   ASSERT(
       GENERAL_ERROR,
       N_GTREE,
@@ -185,16 +188,17 @@ int init_growing_tree(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst){
   for(i = 0; i < 3; i++){
     meta->gtree->master_idx_map[i] = mst->prim_ord[i];
     meta->visited[mst->prim_ord[i]] = -1;
-    meta->gtree->adj_list[3][i].sample = i;
+    meta->gtree->adj_list[3][i].samples[0] = i; // GC: this is definitely the first sample for the edge
   }
 
   // This is a bit tricky, we need to find adjacent nodes in the mst
-  meta->gtree->adj_list[0][0].sample = 1; // fist vertex in prim is obviously 
+  meta->gtree->adj_list[0][0].samples[0] = 1; // fist vertex in prim is obviously 
                                           //    connected to second
-  meta->gtree->adj_list[1][0].sample = 0; // vice versa
-
+                                          // GC: this is definitely the first sample for the edge
+  meta->gtree->adj_list[1][0].samples[0] = 0; // vice versa
+                                          // GC: this is definitely the first sample for the edge
   // check if the parent of 3rd vertex in mst is adjacent to 0 or 1
-  meta->gtree->adj_list[2][0].sample = 
+  meta->gtree->adj_list[2][0].samples[0] =  // GC: this is definitely the first sample for the edge
       map->master_to_gidx[mst->prim_par[mst->prim_ord[2]]]; 
 
   return 0;
@@ -205,7 +209,8 @@ int attach_leaf_to_edge(
     MAP_GRP * map,
     MST_GRP * mst, 
     VOTE_GRP * vote, 
-    int i)
+    int i,
+    int num_samples)
 {
   // Set the new edge to be present in the growing tree
   meta->visited[mst->prim_ord[i]] = -1;
@@ -219,7 +224,8 @@ int attach_leaf_to_edge(
           mst->prim_ord[i],
           vote->ins.p,
           vote->ins.c,
-          map->master_to_gidx[mst->prim_par[mst->prim_ord[i]]]
+          map->master_to_gidx[mst->prim_par[mst->prim_ord[i]]],
+          num_samples
       ) 
   );
 
@@ -231,14 +237,14 @@ int attach_leaf_to_edge(
 }
 
 
-int write_newick(BT * tree, char * filename, char ** name_map){
+int write_newick(BT * tree, char * filename, char ** name_map, int num_samples){
   char buffer[MAX_BUFFER_SIZE * 100];
   FILE * f;
 
   // Subdivide an edge and make it the root
   tree->n_node++;
 
-  swap_adajcency(0, tree->n_node - 1, tree->adj_list[0][0].dest, tree);
+  swap_adajcency(0, tree->n_node - 1, tree->adj_list[0][0].dest, tree, num_samples);
   STR_CLR(buffer);
   petite_dfs(tree->n_node - 1, -1, name_map, buffer, tree);
   strcat(buffer, ";");
@@ -270,12 +276,12 @@ void set_adj(BT * tree, int idx, int order, int val){
   tree->adj_list[idx][order].dest = val;
 }
 
-int get_edge_sample(BT * tree, int idx, int order){
-  return tree->adj_list[idx][order].sample;
+int get_edge_sample(BT * tree, int idx, int order, int sampleorder){
+  return tree->adj_list[idx][order].samples[sampleorder]; // GC: now returns a list of samples
 }
 
-void set_edge_sample(BT * tree, int idx, int order, int val){
-  tree->adj_list[idx][order].sample = val;
+void set_edge_sample(BT * tree, int idx, int order, int sampleorder, int val){ // GC: added sampleorder
+  tree->adj_list[idx][order].samples[sampleorder] = val; // GC: now returns a list of samples
 }
 
 void set_edge_master_idx(BT * tree, int ini, int dest, int val){
@@ -292,7 +298,8 @@ int attach_leaf_to_edge_impl(
     int x, 
     int additional_edge_parent, 
     int additional_edge_child, 
-    int adjacent_in_mst)
+    int adjacent_in_mst,
+    int num_samples) // GC: added num_samples
 {
   int i, n;
   // Changing tree logistics (if this fails or terminate in the middle of some 
@@ -309,7 +316,8 @@ int attach_leaf_to_edge_impl(
           additional_edge_parent,
           n - 2,
           additional_edge_child,
-          growing_tree
+          growing_tree, 
+          num_samples
       )
   );
 
@@ -323,11 +331,25 @@ int attach_leaf_to_edge_impl(
       )
   );
 
+  int update_idx;
   for(i = 0; i < 3; i++)
-    if(get_adj(growing_tree, n - 2, i) == n - 1)
-      set_edge_sample(growing_tree, n - 2, i, n - 1);
+    if(get_adj(growing_tree, n - 2, i) == n - 1) // if tree->adj_list[n-2][i].dest == n-1
+      // check if there's a -1
+      update_idx = 0; 
+      for(int j = 0; j < num_samples; j++) 
+        if (get_edge_sample(growing_tree, n - 2, i, j) == -1) {
+          update_idx = j; 
+          break; 
+        }
+      set_edge_sample(growing_tree, n - 2, i, update_idx, n - 1); 
 
-  set_edge_sample(growing_tree, n - 1, 0, adjacent_in_mst);
+    update_idx = 0;
+    for(int j = 0; j < num_samples; j++) 
+      if (get_edge_sample(growing_tree, n - 1, 0, j) == -1) {
+        update_idx = j; 
+        break; 
+      }
+  set_edge_sample(growing_tree, n - 1, 0, update_idx, adjacent_in_mst);
 
   growing_tree->master_idx_map[growing_tree->n_node - 1] = x;
 
@@ -336,9 +358,10 @@ int attach_leaf_to_edge_impl(
 
 BT * tree_constructor(
     int n, 
-    BT_edge ** adj_list, 
+    BT_edge *** adj_list, // GC: added another * 
     int * degree, 
-    int * master_idx_map)
+    int * master_idx_map,
+    int num_samples) // GC: pass in the num_leaves parameter
 {
   // The arrays mayeb null (in case of null construction)
   int i, j;
@@ -347,7 +370,7 @@ BT * tree_constructor(
 
   tree->n_node = n;
 
-  tree->adj_list              = SAFE_MALLOC(n * sizeof(BT_edge *));
+  tree->adj_list              = SAFE_MALLOC(n * sizeof(BT_edge *) * num_samples); // GC: malloc more space
   tree->degree                = SAFE_MALLOC(n * sizeof(int));
   tree->master_idx_map        = SAFE_MALLOC(n * sizeof(int));
 
@@ -361,7 +384,9 @@ BT * tree_constructor(
     else 
       for(j = 0; j < 3; j++){
         tree->adj_list[i][j].dest = -1;
-        tree->adj_list[i][j].sample = -1;
+        for(int k=0; k < num_samples; k++){
+          tree->adj_list[i][j].samples[k] = -1; // GC: Create a list of -1's as long as the num_leaf_samples
+        }
         tree->adj_list[i][j].master_idx = -1;
       }
 
@@ -397,7 +422,7 @@ BT * tree_constructor(
     } while(0)
 
 
-BT * read_newick(MAP_GRP * map, char * filename, int tree_idx){
+BT * read_newick(MAP_GRP * map, char * filename, int tree_idx, int num_samples){
   FILE *  f;
   int i, j;
 
@@ -490,7 +515,7 @@ BT * read_newick(MAP_GRP * map, char * filename, int tree_idx){
     mock[i] = &(adj_list[1 + i][0]);
 
   // Make the binary tree and return
-  return tree_constructor(max_node, mock, &degree[1], &master_idx_map[1]);
+  return tree_constructor(max_node, mock, &degree[1], &master_idx_map[1], num_samples);
 }
 
 
@@ -514,7 +539,7 @@ int check(int node_a, BT * tree){
 }
 
 // Delete a-c and make a-b, b-c 
-int swap_adajcency(int node_a, int node_b, int node_c, BT* tree){
+int swap_adajcency(int node_a, int node_b, int node_c, BT* tree, int num_samples){
   int i, j;
   ASSERT(
       GENERAL_ERROR,
@@ -539,22 +564,26 @@ int swap_adajcency(int node_a, int node_b, int node_c, BT* tree){
 
     // Assuming b is new so its fields are empty
     set_adj(tree, node_b, get_degree(tree, node_b), node_a);
-    set_edge_sample(
-        tree, 
-        node_b, 
-        get_degree(tree, node_b), 
-        get_edge_sample(tree, node_c, j)
-    );
-    incr_deg(tree, node_b);
+    for (int k = 0; k < num_samples; k++) { // added this loop for k 
+      set_edge_sample(
+          tree, 
+          node_b, 
+          get_degree(tree, node_b), 
+          k, // adding this sampleorder idx
+          get_edge_sample(tree, node_c, j, k) // adding this k sampleorder idx to get
+      );
+      incr_deg(tree, node_b);
 
-    set_adj(tree, node_b, get_degree(tree, node_b), node_c);
-    set_edge_sample(
-        tree, 
-        node_b,
-        get_degree(tree, node_b),
-        get_edge_sample(tree, node_a, i)
-    );
-    incr_deg(tree, node_b);
+      set_adj(tree, node_b, get_degree(tree, node_b), node_c);
+      set_edge_sample(
+          tree, 
+          node_b,
+          get_degree(tree, node_b),
+          k, // adding this sampleorder idx
+          get_edge_sample(tree, node_a, i, k) // adding this k sampleorder idx to get
+      );
+      incr_deg(tree, node_b);
+    }
   }
   return 0;
 }

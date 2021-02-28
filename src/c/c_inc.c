@@ -19,7 +19,7 @@
 
 #define SEED 12345
 
-int serial_main_loop(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, VOTE_GRP * vote);
+int serial_main_loop(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, VOTE_GRP * vote, int num_samples);
 int init_meta_with_msa(msa_t * msa, INC_GRP * meta, MAP_GRP * map);
 
 
@@ -103,7 +103,7 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
   FCAL(
       GENERAL_ERROR, 
       F_INIT_GTREE_IN_CINC,
-      init_growing_tree(&meta, &map, &mst)
+      init_growing_tree(&meta, &map, &mst, master_ml_options->num_leaf_samples)
   );
 
   FCAL(
@@ -117,7 +117,7 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
   FCAL(
       GENERAL_ERROR, 
       F_SERIAL_MAIN_LOOP_IN_CINC,
-      serial_main_loop(&meta, &map, &mst, &vote)
+      serial_main_loop(&meta, &map, &mst, &vote, master_ml_options->num_leaf_samples)
   );
 
   // Report the growing tree
@@ -128,7 +128,8 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
       write_newick(
           meta.gtree, 
           master_ml_options->output_prefix, 
-          map.master_to_name
+          map.master_to_name,
+          master_ml_options->num_leaf_samples
       )
   );
 
@@ -137,7 +138,7 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
   return 0;
 }
 
-int serial_main_loop(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, VOTE_GRP * vote){
+int serial_main_loop(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, VOTE_GRP * vote, int num_samples){
   int i, j; //loop counter
 
   printf(ITER_COUNT);
@@ -165,13 +166,13 @@ int serial_main_loop(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, VOTE_GRP * vo
     FCAL(
         GENERAL_ERROR,
         F_BFS_VOTE_IN_CINC,
-        bfs_vote(meta, map, mst, vote, i)
+        bfs_vote(meta, map, mst, vote, i, num_samples)
     );
 
     FCAL(
         GENERAL_ERROR,
         F_ATTACH_IN_CINC,
-        attach_leaf_to_edge(meta, map, mst, vote, i)
+        attach_leaf_to_edge(meta, map, mst, vote, i, num_samples)
     );
   }
   printf("\n");

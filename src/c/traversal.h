@@ -41,7 +41,8 @@ extern int bfs_vote(
     MAP_GRP * map,
     MST_GRP * mst, 
     VOTE_GRP * vote, 
-    int i
+    int i,
+    int num_samples
 );
 
 static const char F_FPM_IN_BFS[]

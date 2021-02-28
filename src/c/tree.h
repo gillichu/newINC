@@ -7,16 +7,16 @@
 
 // Initializations
 extern int parse_tree(INC_GRP * meta, MAP_GRP * map, ml_options * options);
-extern int init_growing_tree(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst);
-extern int write_newick(BT * tree, char * filename, char ** name_map);
+extern int init_growing_tree(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, int num_leaf_samples);
+extern int write_newick(BT * tree, char * filename, char ** name_map, int num_samples);
 extern int get_degree(BT * tree, int idx);
 
 extern int get_adj(BT * tree, int idx, int order);
 extern void set_edge_master_idx(BT * tree, int ini, int dest, int val);
 extern int get_edge_master_idx(BT * tree, int ini, int dest);
-extern int get_edge_sample(BT * tree, int idx, int order);
+extern int get_edge_sample(BT * tree, int idx, int order, int sampleorder);
 
-BT * read_newick(MAP_GRP * map, char * filename, int tree_idx);
+BT * read_newick(MAP_GRP * map, char * filename, int tree_idx, int num_samples);
 
 // Modifiers
 extern int attach_leaf_to_edge(
@@ -24,7 +24,8 @@ extern int attach_leaf_to_edge(
   MAP_GRP * map,
   MST_GRP * mst, 
   VOTE_GRP * vote, 
-  int i
+  int i,
+  int num_samples
 );
 
 static const char N_GTREE[] = "gtree is null\n"; 

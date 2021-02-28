@@ -47,7 +47,8 @@ int bfs_vote_implementation(
     int x,
     double q0,
     // int power,
-    int ** revote_map);
+    int ** revote_map, 
+    int num_samples); // GC: added a parameter
     // int all_quartets,
     // int revoting);
 
@@ -86,7 +87,8 @@ int do_quartet(
     int * revote_map,
     int revote_power,
     int x,
-    int all_quartets);
+    int all_quartets, 
+    int num_samples);
 
 
 /* Function to initialize variables relevant to voting to a blank state so 
@@ -341,7 +343,8 @@ int bfs_vote(
     MAP_GRP * map, 
     MST_GRP * mst, 
     VOTE_GRP * vote, 
-    int i)
+    int i,
+    int num_samples)
 {
   int j;
   int * revote_map = NULL;
@@ -364,7 +367,8 @@ int bfs_vote(
             mst->prim_ord[i],
             (double) mst->max_w,
             // INV_SQR,
-            &revote_map
+            &revote_map,
+            num_samples
             // ALL_QUARTET,
             // NO_REVOTING
         )
@@ -517,7 +521,8 @@ int bfs_vote_implementation(
     int x,
     double q0,
     // int power,
-    int ** revote_map)
+    int ** revote_map,
+    int num_samples) // GC: added a parameter
     // int all_quartets,
     // int revoting)
 {
@@ -602,7 +607,8 @@ int bfs_vote_implementation(
             (*revote_map),
             revoting ? vote->revoting_weight_power : vote->weight_power,
             x,
-            revoting ? vote->is_revoting_all_quartet : vote->is_all_quartet
+            revoting ? vote->is_revoting_all_quartet : vote->is_all_quartet,
+            num_samples
         )
     );
 
@@ -799,7 +805,8 @@ int do_quartet(
     int * revote_map,
     int revote_power,
     int x,
-    int all_quartets)
+    int all_quartets,
+    int num_samples)
 {
   const int DEGREE = 3;
   const int NUM_CHILD = 2;
@@ -807,8 +814,11 @@ int do_quartet(
   const int PAR_OFFSET = 0;
 
   int i, j;
+  int ii, jj; // GC: declaring some variables 
   int nex_idx;
-  int u[4]; // 0 is parent, 1 is first child, 2 is second child, 
+  // GC need to declare u 
+  int * u[4];
+  // int u[4]; // 0 is parent, 1 is first child, 2 is second child, 
             // 3 is the insertion taxon
   double M = -1e9;
   BT * tree = meta->gtree;
@@ -821,23 +831,37 @@ int do_quartet(
   DIST_MOD distance_model = meta->master_ml_options->distance_model;
   int use_distance_matrix = meta->master_ml_options->use_distance_matrix; 
 
-  u[3] = x; 
-  for(i = 0; i < DEGREE; i++)
-    u[i] = gidx_to_master[get_edge_sample(tree, cur, adj_idx_a[i])];
+  // GC: Construct several u's 
+  // GC: run_qmethod
+  // GC: judge all the quartets 
+
+  // GC: adding u[3] = x
+  for(j=0; j < num_samples; j++) {
+    u[3][j] = x;
+  }
+
+  for(i = 0; i < DEGREE; i++) {
+    for(j = 0; j < num_samples; j++) {
+      u[i][j] = gidx_to_master[get_edge_sample(tree, cur, adj_idx_a[i], j)];
+    }
+  }
 
   for(i = 0; i < 4; ++i)
-    for(j = i + 1; j < 4; ++j)
-      M = MAX(M, 
-          use_distance_matrix ?
-              meta->d[u[i]][u[j]] : 
-              dist_from_msa(
-                  meta->msa, 
-                  distance_model,
-                  u[i],
-                  u[j], 
-                  meta->correction
-              )
-      );
+    for(ii = 0; ii < num_samples; ii++) // GC: adding 
+      for(j = i + 1; j < 4; ++j)
+        for(jj = 0; jj < num_samples; jj++) // GC: adding 
+          // getting max distance leaf samples 
+          M = MAX(M, 
+              use_distance_matrix ?
+                  meta->d[u[i][ii]][u[j][jj]] : // GC: adding idx
+                  dist_from_msa(
+                      meta->msa, 
+                      distance_model,
+                      u[i][ii], // GC: adding idx
+                      u[j][jj], // GC: adding idx
+                      meta->correction
+                  )
+          );
 
   // Invalid quartet case
   for(i = 0; i < NUM_CHILD; i++)
