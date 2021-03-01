@@ -188,8 +188,6 @@ int parse_ml_arg(char ** argv,
     case 'm':
         ml_options->init_d_name = argv[content_s];
       break;
-    case 'l':
-        ml_options->num_leaf_samples = argv[content_s]; // GC: adding variable leaf sample parameter
     case 'r': 
         ml_options->recompute_constraint_trees = argv[content_s][0] - '0';
       break;
@@ -220,6 +218,9 @@ int parse_ml_arg(char ** argv,
     case 's':
       ml_options->ss_threshold = atoi(argv[content_s]);
       break;
+    case 'l':
+      ml_options->num_samples = atoi(argv[content_s]);
+      break; 
     case 'v':
         switch(argv[content_s][0]){
           case '1':
@@ -288,6 +289,11 @@ int find_arg_index(
   );
 
   switch(flag[1]){
+    case 'l':
+      options->num_samples = atoi(content);
+      printf("Num leaf samples user input was: %i \n", options->num_samples);
+      break; 
+
     case 'i':
       options->init_d_name = content;  
       break;
@@ -355,6 +361,7 @@ int init_ml_options(ml_options * ml_options){
   ml_options->distance_model                      = D_LOGDET;
 
   ml_options->ss_threshold                            = -1;
+  ml_options->num_samples                             = 3; 
 
   ml_options->use_initial_tree_as_spanning_tree       = 0;
 

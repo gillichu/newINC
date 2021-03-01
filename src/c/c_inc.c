@@ -97,15 +97,18 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
       parse_tree(&meta, &map, master_ml_options)
   );
 
+  // GC: Confirm what we read in
+  // printf("User input %i num_samples... \n", master_ml_options->num_samples);
 
   // Initialize growing tree using the first 3 taxa in the ordering
   printf(STATE_INIT_GTREE);
   FCAL(
       GENERAL_ERROR, 
       F_INIT_GTREE_IN_CINC,
-      init_growing_tree(&meta, &map, &mst, master_ml_options->num_leaf_samples)
+      init_growing_tree(&meta, &map, &mst, master_ml_options->num_samples)
   );
 
+  printf("Passing vote options...\n");
   FCAL(
       GENERAL_ERROR,
       "voting initialization failed in main",
@@ -114,10 +117,12 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
 
   // Loop through Prim's ordering
   printf(STATE_BUILD_TREE);
+  // printf("Am i still okay here? \n ");
+  // printf("&meta: %p , &map: %p, &mst: %p, &vote: %p \n ", &meta, &map, &mst, &vote);
   FCAL(
       GENERAL_ERROR, 
       F_SERIAL_MAIN_LOOP_IN_CINC,
-      serial_main_loop(&meta, &map, &mst, &vote, master_ml_options->num_leaf_samples)
+      serial_main_loop(&meta, &map, &mst, &vote, master_ml_options->num_samples)
   );
 
   // Report the growing tree
@@ -129,7 +134,7 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
           meta.gtree, 
           master_ml_options->output_prefix, 
           map.master_to_name,
-          master_ml_options->num_leaf_samples
+          3 // master_ml_options->num_leaf_samples
       )
   );
 
@@ -139,36 +144,37 @@ int constraint_inc_main(int argc, char ** argv, ml_options * master_ml_options){
 }
 
 int serial_main_loop(INC_GRP * meta, MAP_GRP * map, MST_GRP * mst, VOTE_GRP * vote, int num_samples){
+  // printf("<c_inc.c> Inside serial_main_loop... \n");
   int i, j; //loop counter
-
   printf(ITER_COUNT);
   for(i = 3; i < meta->n_taxa; i++){
     print_inline_iteration(i, j, meta->n_taxa, 3);
 
+    // printf("calling init_vote...\n");
     FCAL(
         GENERAL_ERROR,
         F_INIT_VOTE_IN_CINC, 
         init_vote(meta, map, mst, vote, i)
     );
-
+    // printf("calling find_bipartition...\n");
     FCAL(
         GENERAL_ERROR,
         F_FIND_BIPART_IN_CINC, 
         find_bipartition(meta, map, mst, vote, i)
     );
-
+    // printf("calling find_valid_subtree...\n");
     FCAL(
         GENERAL_ERROR,
         F_FIND_VALID_ST_IN_CINC,
         find_valid_subtree(meta, map, mst, vote)
     );
-
+    // printf("calling bfs_vote...\n");
     FCAL(
         GENERAL_ERROR,
         F_BFS_VOTE_IN_CINC,
         bfs_vote(meta, map, mst, vote, i, num_samples)
     );
-
+    // printf("calling attach_leaf_to_edge...\n");
     FCAL(
         GENERAL_ERROR,
         F_ATTACH_IN_CINC,

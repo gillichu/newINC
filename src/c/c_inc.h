@@ -60,7 +60,7 @@ typedef struct m{ // this is an adjacency list edge, meaning that it is
 
 typedef struct tree{
   int n_node;           // number of nodes in the tree
-  BT_edge ** adj_list;      // n_node array of adjacent nodes
+  BT_edge ** adj_list;      // n_node array of adjacent nodes 
   int * degree;          // n_node array of degee
 
   int * master_idx_map;      // n_node indexing from the constrained 
@@ -112,7 +112,6 @@ typedef struct ml_options{
   char * init_tree_name;   // currently only accepts path 
   char * init_d_name;     // currently only accepts path
   char * guide_tree_name;   // currently only accepts path
-  char * num_leaf_samples; // GC: adding variable leaf sample parameter
 
   int num_trees;
   char ** tree_names ;
@@ -142,6 +141,10 @@ typedef struct ml_options{
 
   // PASTA decomposition setting
   int ss_threshold; 
+
+  // GC: Added a num_samples option
+  int num_samples; 
+
 } ml_options;
 // Whole graphs 
 typedef struct list{

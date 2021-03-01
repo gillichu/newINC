@@ -25,7 +25,7 @@ int do_quartet_ll(
 // Implementation of FPM. Input is a distance matrix and a quartet, u1 - u3 are 
 //    known leaves, x is query taxon, results shows which leave is the sibling 
 //    of the query taxon
-int four_point_method(float ** d, int * u, int * res){
+int four_point_method(float ** d, int * u, int * res){ // GC: added * to u 
   int i;
   float tmp, m = 1e9;
 

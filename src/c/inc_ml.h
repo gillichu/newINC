@@ -38,7 +38,7 @@ static const char STATE_CLEAN[]
   = "done, cleaning up\n";
 
 static const char ITER_COUNT[] 
-  = "current iteration is 2...";
+  = "current iteration is 2...\n";
 
 // Failure strings
 static const char F_MAKE_SS_LBL_IN_MAKE_CTREE[] 

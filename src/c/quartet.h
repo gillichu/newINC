@@ -8,7 +8,7 @@
 static const int QUAD = 4;
 
 
-extern int four_point_method(float ** d, int * u, int * res);
+extern int four_point_method(float ** d, int * u, int * res); 
 
 extern int new_quartets_raxml(
     char ** name_map, 

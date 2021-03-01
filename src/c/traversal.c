@@ -346,6 +346,7 @@ int bfs_vote(
     int i,
     int num_samples)
 {
+  // printf("<traversal.c> bfs_vote: beginning...\n");
   int j;
   int * revote_map = NULL;
   if(vote->st_lca.p == vote->nd_lca.c && 
@@ -357,6 +358,7 @@ int bfs_vote(
   vote->tree = meta->gtree;
 
   for(j = 0; j < vote->is_revoting + 1; j++)
+    // printf("<traversal.c> bfs_vote: calling bfs_vote_implementation.\n");
     FCAL(
         GENERAL_ERROR,
         F_BFS_VOTE_IMPL_IN_BFS_VOTE,
@@ -526,7 +528,7 @@ int bfs_vote_implementation(
     // int all_quartets,
     // int revoting)
 {
-
+  // printf("<traversal.c> bfs_vote_implementation: beginning... \n");
   // Tree statistics
   BT * tree = meta->gtree;
   int n = tree->n_node;
@@ -550,6 +552,7 @@ int bfs_vote_implementation(
 
 
   // Init sequence 
+  // printf("calling init_bfs...\n");
   FCAL(
       GENERAL_ERROR,
       F_INIT_BFS_IN_BFS,
@@ -560,6 +563,7 @@ int bfs_vote_implementation(
           queue
       )
   );
+  // printf("calling init_revote...\n");
   FCAL(
       GENERAL_ERROR,
       F_INIT_IN_REVOTE_IN_BFS,
@@ -579,6 +583,7 @@ int bfs_vote_implementation(
     if(get_degree(tree, cur) == 1 || cur == e || cur == s_p) continue;
 
     // Updating edge count 
+    // printf("calling update_edge_count...\n");
     FCAL(
         GENERAL_ERROR,
         F_UPDATE_EDGE_IN_BFS,
@@ -591,6 +596,7 @@ int bfs_vote_implementation(
         )
     );
 
+    // printf("calling do_quartet...\n");
     // 4 point
     FCAL(
         GENERAL_ERROR,
@@ -699,13 +705,15 @@ int update_edge_count(
   int adj_counter;
   int nex;
 
+  // printf("<traversal.c> update_edge_count: get_adj \n");
   // Find parent order
   for(i = 0; i < DEGREE; i++)
     if(get_adj(tree, cur, i) == parent_map[cur])
       adj_idx_a[0] = i;
 
+  // printf("<traversal.c> update_edge_count: get_adj \n");
   adj_counter = 1;
-  for(i = 0; i < DEGREE; i++)
+  for(i = 0; i < DEGREE; i++) {
     if(i != adj_idx_a[0]){
       adj_idx_a[adj_counter++] = i;
 
@@ -713,13 +721,16 @@ int update_edge_count(
       for(j = 0; j < get_degree(tree, nex); j++)
         if(get_adj(tree, nex, j) == cur)
           break; 
-
+      // printf("<traversal.c> update_edge_count: calling set_edge_master_idx \n");
+      // printf("<traversal.c> cur: %i, i: %i, val: %i \n", cur, i, *edge_count);
       set_edge_master_idx(tree, cur, i, *edge_count);
+      // printf("<traversal.c> nex: %i, i: %i, val: %i \n", nex, j, *edge_count);
       set_edge_master_idx(tree, nex, j, *edge_count);
       (*edge_count)++;
 
       parent_map[nex] = cur;
     }
+  }
   return 0;
 }
 
@@ -753,7 +764,6 @@ int run_qmethod(
       if(use_distance_matrix){
         for(i = 0; i < 4; i++)
           u[i] = master_to_midx[u[i]];
-        
         FCAL(
             GENERAL_ERROR,
             F_FPM_MAT_IN_BFS,
@@ -814,17 +824,22 @@ int do_quartet(
   const int PAR_OFFSET = 0;
 
   int i, j;
-  int ii, jj; // GC: declaring some variables 
   int nex_idx;
-  // GC need to declare u 
-  int * u[4];
+  // GC changing u back
+  int u[4];
+  int ** all_samples;
+  all_samples = SAFE_MALLOC(4 * sizeof(int *));
+
+  for(i = 0; i < 4; i++) {
+    all_samples[i] = SAFE_MALLOC(num_samples * sizeof(int));
+  }
   // int u[4]; // 0 is parent, 1 is first child, 2 is second child, 
             // 3 is the insertion taxon
+  
   double M = -1e9;
   BT * tree = meta->gtree;
 
   int quartet_result;
-
   // printf("revote_power %d all_quartets %d\n", revote_power, all_quartets);
 
   int * gidx_to_master = tree->master_idx_map;
@@ -836,70 +851,87 @@ int do_quartet(
   // GC: judge all the quartets 
 
   // GC: adding u[3] = x
-  for(j=0; j < num_samples; j++) {
-    u[3][j] = x;
-  }
+  // for(j=0; j < num_samples; j++) {
+  //   u[3][j] = x;
+  // }
+  u[3] = x;
 
   for(i = 0; i < DEGREE; i++) {
     for(j = 0; j < num_samples; j++) {
-      u[i][j] = gidx_to_master[get_edge_sample(tree, cur, adj_idx_a[i], j)];
+      all_samples[i][j] = gidx_to_master[get_edge_sample(tree, cur, adj_idx_a[i], j)];
     }
   }
 
-  for(i = 0; i < 4; ++i)
-    for(ii = 0; ii < num_samples; ii++) // GC: adding 
-      for(j = i + 1; j < 4; ++j)
-        for(jj = 0; jj < num_samples; jj++) // GC: adding 
-          // getting max distance leaf samples 
-          M = MAX(M, 
-              use_distance_matrix ?
-                  meta->d[u[i][ii]][u[j][jj]] : // GC: adding idx
-                  dist_from_msa(
-                      meta->msa, 
-                      distance_model,
-                      u[i][ii], // GC: adding idx
-                      u[j][jj], // GC: adding idx
-                      meta->correction
-                  )
-          );
+  int count = 0; 
+  // SET UP U 
+  for(int ii = 0; ii < num_samples; ii++) {
+    for(int jj = 0; jj < num_samples; jj++) {
+      for(int kk = 0; kk < num_samples; kk++) {
+        u[0] = all_samples[0][ii]; 
+        u[1] = all_samples[1][jj];
+        u[2] = all_samples[2][kk]; 
 
-  // Invalid quartet case
-  for(i = 0; i < NUM_CHILD; i++)
-    itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[CHILD_OFFSET + i])]
-        = itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[PAR_OFFSET])];
+        // COPIED INTO 3 FOR LOOP
+        for(i = 0; i < 4; ++i)
+            for(j = i + 1; j < 4; ++j)
+              // getting max distance leaf samples 
+              M = MAX(M, 
+                use_distance_matrix ?
+                    meta->d[u[i]][u[j]] : // GC: adding idx
+                    dist_from_msa(
+                        meta->msa, 
+                        distance_model,
+                        u[i], // GC: adding idx
+                        u[j], // GC: adding idx
+                        meta->correction
+                    )
+            );
 
-  if(all_quartets || M - 8 * q0 <= EPS) {
-    FCAL(
-        GENERAL_ERROR,
-        F_RUN_QMETHOD_IN_DO_Q,
-        run_qmethod(
-            meta,
-            map->master_to_midx,
-            map->master_to_name,
-            u,
-            &quartet_result,
-            &M
-        )
-    );
+          // Invalid quartet case
+          for(i = 0; i < NUM_CHILD; i++)
+            itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[CHILD_OFFSET + i])]
+                = itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[PAR_OFFSET])];
 
-    if(quartet_result == 0)  // parent wins
-      for(i = 0; i < 2; i++)
-        itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[i + CHILD_OFFSET])] 
-            -= POWER(1.0 / M, revote_power);
-    for(i = 0; i < NUM_CHILD; i++)
-      if(quartet_result == i + CHILD_OFFSET)
-        itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[i + CHILD_OFFSET])]
-            += POWER(1.0 / M, revote_power);
-  }
+          if(all_quartets || M - 8 * q0 <= EPS) {
+            FCAL(
+                GENERAL_ERROR,
+                F_RUN_QMETHOD_IN_DO_Q,
+                run_qmethod(
+                    meta,
+                    map->master_to_midx,
+                    map->master_to_name,
+                    u,
+                    &quartet_result,
+                    &M
+                )
+            );
 
-  for(i = 0; i < 2; i++){
-    nex_idx = get_edge_master_idx(tree, cur, adj_idx_a[i + CHILD_OFFSET]);
-    if(revote_map[nex_idx] && itrnl_vote[nex_idx] - (*max_vote) > EPS){
-        (*max_vote) = itrnl_vote[nex_idx];
-        vote->ins.c = get_adj(tree, cur, adj_idx_a[i + CHILD_OFFSET]);
-        vote->ins.p = cur;
+            if(quartet_result == 0)  // parent wins
+              for(i = 0; i < 2; i++)
+                itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[i + CHILD_OFFSET])] 
+                    -= POWER(1.0 / M, revote_power);
+            for(i = 0; i < NUM_CHILD; i++)
+              if(quartet_result == i + CHILD_OFFSET)
+                itrnl_vote[get_edge_master_idx(tree, cur, adj_idx_a[i + CHILD_OFFSET])]
+                    += POWER(1.0 / M, revote_power);
+          }
+
+          for(i = 0; i < 2; i++){
+            nex_idx = get_edge_master_idx(tree, cur, adj_idx_a[i + CHILD_OFFSET]);
+            if(revote_map[nex_idx] && itrnl_vote[nex_idx] - (*max_vote) > EPS){
+                (*max_vote) = itrnl_vote[nex_idx];
+                vote->ins.c = get_adj(tree, cur, adj_idx_a[i + CHILD_OFFSET]);
+                vote->ins.p = cur;
+            }
+          }
+
+          // END OF COPY 
+          count += 1; 
+      }
     }
   }
 
+  // printf(" %i quartets voted. \n", count);
+  
   return 0;
 }
