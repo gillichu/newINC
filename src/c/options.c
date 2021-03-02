@@ -311,6 +311,7 @@ int find_arg_index(
           break;
         else options->num_trees++;
       }
+      printf("Num trees user input was: %i \n", options->num_trees);
 
       options->tree_names = malloc(options->num_trees * sizeof(char*));
       ASSERT(
@@ -318,11 +319,12 @@ int find_arg_index(
           M_ERR_IN_FIND_ARG_IDX,
           options->tree_names
       );
-
+      printf("Made it past malloc. \n");
       for(j = 0; j < options->num_trees; j++)
         options->tree_names[j] = argv[(*i) + j + 1];
       
       (*i) += options->num_trees;
+      printf("End of processing num trees \n");
       break;
 
     default:
@@ -361,7 +363,7 @@ int init_ml_options(ml_options * ml_options){
   ml_options->distance_model                      = D_LOGDET;
 
   ml_options->ss_threshold                            = -1;
-  ml_options->num_samples                             = 3; 
+  ml_options->num_samples                             = 1; 
 
   ml_options->use_initial_tree_as_spanning_tree       = 0;
 

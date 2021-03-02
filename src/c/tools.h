@@ -294,6 +294,7 @@ static const char nw_prune_bin[]
   = "nw_prune";
 static const char rm_lbl_bin[]          
   = "remove_internal_labels.py";
+  // = "/Users/gillianchu/Desktop/new_cinc/INC/remove_internal_labels.py";
 #else
 static const char RAxML_bin[]    = "raxmlHPC-PTHREADS-SSE3";
 static const char FastTree_bin[] = "FastTree";

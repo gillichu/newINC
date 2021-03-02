@@ -508,6 +508,7 @@ int nw_utils_job(char * in_tree, char * in_label, char * out_path)
 
 int rm_label_job(char * in_tree, char * out_path)
 {
+  // printf("<tools.c> Inside rm_label_job. in: %s, out: %s \n", in_tree, out_path);
   SYSCAL(
       GENERAL_ERROR,
       ERR_RM_LBL,

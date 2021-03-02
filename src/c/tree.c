@@ -112,6 +112,7 @@ int parse_tree(INC_GRP * meta, MAP_GRP * map, ml_options * options){
 
   // Sanitize 
   for(i = 0; i < meta->n_ctree; i++){
+    // printf("<tree.c> About to call rm_label_job \n");
     if(meta->master_ml_options->qtree_method == Q_SUBTREE)
       FCAL(
           GENERAL_ERROR, 
@@ -279,6 +280,8 @@ void set_adj(BT * tree, int idx, int order, int val){
 }
 
 int get_edge_sample(BT * tree, int idx, int order, int sampleorder){
+  // printf("<tree.c> get_edge_sample: idx %i, order: %i, sampleorder: %i \n", idx, order, sampleorder);
+  // printf("<tree.c> [0]: %d, [1]: %d, [2]: %d \n", tree->adj_list[idx][order].samples[0], tree->adj_list[idx][order].samples[1], tree->adj_list[idx][order].samples[2]);
   return tree->adj_list[idx][order].samples[sampleorder]; // GC: now returns a list of samples
 }
 
@@ -337,30 +340,38 @@ int attach_leaf_to_edge_impl(
       )
   );
   // printf("<tree.c> attach_leaf_to_edge_impl: updating get_edge/set_edge \n"); 
-  int update_idx;
+  signed int update_idx;
+  update_idx = -1; 
+  // printf("Setting update idx to: %d \n", update_idx); 
   for(i = 0; i < 3; i++) {
     // printf("i is %i \n", i);
     if(get_adj(growing_tree, n - 2, i) == n - 1) // if tree->adj_list[n-2][i].dest == n-1
       // check if there's a -1
       update_idx = -1; 
+      // printf("Update idx is: %d \n", update_idx);
       for(int j = 0; j < num_samples; j++) {
         // printf("num_samples is %i \n", num_samples); 
-        // printf("<tree.c? attach_leaf_to_edge_impl: n-2: %i, i:%i, j:%i \n", n-2, i, j); 
+        // printf("<tree.c> attach_leaf_to_edge_impl: n-2: %i, i:%i, j:%i \n", n-2, i, j); 
         if (get_edge_sample(growing_tree, n - 2, i, j) == -1) {
           update_idx = j; 
+          // printf("updated update_idx to: %d \n", update_idx);
           break; 
         }
       }
-      set_edge_sample(growing_tree, n - 2, i, update_idx, n - 1); 
-
-    update_idx = -1;
+      // printf("<tree.c> before set_edge_sample n-2: %i, i:%i, j:%update_idx \n", n-2, i, update_idx);
+      if (update_idx != 99999) {
+        // printf("Setting edge sample! \n"); 
+        set_edge_sample(growing_tree, n - 2, i, update_idx, n - 1); 
+      }
+    // printf("<tree.c> before get_edge_sample again \n");
+    update_idx = 99999;
     for(int j = 0; j < num_samples; j++) 
       if (get_edge_sample(growing_tree, n - 1, 0, j) == -1) {
         update_idx = j; 
         break; 
       }
   }
-  if (update_idx != -1) // GC: only update if there's room, MST assumption
+  if (update_idx != 99999) // GC: only update if there's room, MST assumption
     set_edge_sample(growing_tree, n - 1, 0, update_idx, adjacent_in_mst);
 
   growing_tree->master_idx_map[growing_tree->n_node - 1] = x;
